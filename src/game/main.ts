@@ -2,6 +2,9 @@ import { Boot } from './scenes/Boot';
 import { GameOver } from './scenes/GameOver';
 import { Game as MainGame } from './scenes/Game';
 import { MainMenu } from './scenes/MainMenu';
+import { World } from './scenes/World';
+import { Battle } from './scenes/Battle';
+import { Textbox } from './scenes/Textbox';
 import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader';
 
@@ -18,6 +21,9 @@ const config: Phaser.Types.Core.GameConfig = {
         Preloader,
         MainMenu,
         MainGame,
+        World,
+        Battle,
+        Textbox,
         GameOver
     ]
 };

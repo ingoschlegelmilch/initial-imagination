@@ -99,6 +99,44 @@ Import errors due to inconsistent relative paths and case sensitivity.
 
 ---
 
+## 2026-03-28 – Textbox overlay for all in-game text UI
+
+**Context**
+
+Battle needed an action menu and combat log. Rather than building ad-hoc text objects per scene, a shared overlay was added.
+
+**Decision**
+
+- `Textbox` scene runs above all gameplay scenes, launched once by `Game` alongside `World`.
+- All text requests go through `queueTextbox(payload)` / `EventBus.emit('ui:textbox:enqueue', payload)`.
+- Supports paged text, speaker labels, modes (`dialogue|system|combat|shop`), and choice menus with `choiceEvent`/`completeEvent`.
+- Battle wires its entire flow (intro → action menu → result log → enemy turn) through textbox events, keeping no local menu state.
+
+**Rationale**
+
+- Single consistent UI surface for dialogue, combat, pickups, shops.
+- Event-driven API keeps scenes decoupled from the presentation layer.
+
+---
+
+## 2026-03-28 – Core-first rebuild
+
+**Context**
+
+Previous work was lost (uncommitted). Restarting from the Phaser/Next.js template with the docs intact.
+
+**Decision**
+
+- Rebuild in order: `core/models.ts` → `core/battleSystem.ts` → `World` scene → `Battle` scene → `Textbox` overlay.
+- Keep docs updated after each step.
+
+**Rationale**
+
+- Building core first keeps logic testable before any rendering exists.
+- Matches the separation-of-concerns decision already in place.
+
+---
+
 ## Template for future decisions
 
 Copy this block for new decisions:

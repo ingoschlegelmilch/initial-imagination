@@ -14,12 +14,14 @@ The goal is to build a small but extendable RPG framework: tile-based maps, a co
 ## 2. Current status
 
 - Basic Phaser setup is in place.
-- A tile-based “board” is being rendered to the canvas (chessboard-style grid).
-- Horizontal scrolling has been implemented via camera / world movement.
+- `core/models.ts` defines all domain types: `ActorTemplate`, `ActorInstance`, `ActorComputed`, `Stats`, `Tile`, `TerrainKind`, `Element`, `EquipmentSlot`.
+- `core/battleSystem.ts` implements turn-based combat: initiative order, physical/magic damage, defend, flee, status effect ticking, battle-over detection.
+- `World` scene renders a tile grid (20×12, 64px tiles) with terrain types (Grass, Wall, Water), a yellow hero placeholder, tile-based movement (arrow keys), and camera follow. Press `B` to trigger battle.
+- `Battle` scene uses `battleSystem.ts` for all logic: hero vs slime, HP bars, enemy auto-acts after hero turn, exits automatically on win/loss/flee. Action menu and combat log routed through the Textbox overlay.
+- `Textbox` overlay scene handles all in-game text UI: dialogue, combat log, choice menus. Queue via `queueTextbox(payload)` or `EventBus.emit('ui:textbox:enqueue', payload)`. Emits `ui:textbox:active` while visible. Supports paged text, speaker labels, choice menus with `choiceEvent`/`completeEvent`.
+- `Game` scene is a silent orchestrator: launches `World`, handles World↔Battle transitions via EventBus.
 - A spritesheet is available under `/public/assets` and is planned to replace the placeholder rectangles.
-- A `core` module contains shared models and battle system logic (`src/game/core/models.ts`, `src/game/core/battleSystem.ts`).
 - Scenes import from `../core/...` using relative paths.
-- A global textbox overlay scene (`Textbox`) runs above gameplay scenes; demo trigger: press `T` in `World`.
 
 ---
 
@@ -106,17 +108,17 @@ This is intentionally minimal; update as design hardens.
 ## 6. Tilemap system (current approach)
 
 - Tiles are rendered as rectangles (temporary) for quick iteration.
-- Tile size currently: `64x64` (see `World.ts` `TILE` constant).
-- The grid is generated in nested loops in the scene’s `create()` method:
-  - Iteration over `x` and `y` indices.
-  - Each tile’s position = base + `index * TILE_SIZE`.
-- Previous experimental code used `Math.sin` / `Math.cos` for visual effects; this has been removed for a plain grid.
+- Tile size: `64×64` (`TILE` constant in `World.ts`). Grid: 20 columns × 12 rows.
+- Map layout defined as a string array in `World.ts`; characters map to `TerrainKind` (`.` = Grass, `W` = Wall, `~` = Water).
+- Walkability is stored on each `Tile` object; hero movement checks `isTileWalkable` before committing a step.
+- Hero moves one tile at a time (arrow keys); movement is animated with a 100ms tween and locked during animation.
+- Camera follows the hero with soft lerp, bounded to the world size.
 
 Planned improvements:
 
 - Replace rectangles with tile sprites from `/public/assets/spritesheet.png`.
 - Introduce multiple layers (ground, objects, decorations).
-- Add collision information and a way to query tiles (walkable / non-walkable).
+- Move map data to JSON / Tiled export.
 
 ---
 
@@ -132,15 +134,14 @@ Planned improvements:
 
 ## 8. Open questions / TODOs
 
-- Define a stable map format:
-  - Hardcoded arrays vs. JSON vs. Tiled export.
+- Replace placeholder rectangles with sprites from `/public/assets`.
+- Define a stable map format: move from hardcoded string arrays to JSON / Tiled export.
 - Decide how encounters are triggered (random, tile-based, scripted).
-- Define a minimal “hero” data structure:
-  - Base stats, equipment slots, abilities.
-- Set up proper unit tests for `core/battleSystem.ts` and `core/models.ts`.
-- Asset pipeline:
-  - Finalize tile sizes and sprite sheet layout.
-  - Decide scaling rules (1:1 pixels, or scaled up).
+- Define a minimal hero `ActorTemplate` + `ActorInstance` and wire it to the World hero.
+- Wire real `ActorTemplate`/`ActorInstance` data into the Battle scene (currently uses hardcoded placeholder actors).
+- Pause World input when `ui:textbox:active` is true (textbox open during dialogue etc.).
+- Set up unit tests for `core/battleSystem.ts` and `core/models.ts`.
+- Asset pipeline: finalize tile sizes, sprite sheet layout, and scaling rules.
 
 ---
 

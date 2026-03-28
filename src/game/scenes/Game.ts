@@ -1,36 +1,44 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
 
-export class Game extends Scene
-{
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    gameText: Phaser.GameObjects.Text;
+/**
+ * Game is a silent orchestrator scene — it stays active for the lifetime of a
+ * play session and manages transitions between World and Battle.
+ */
+export class Game extends Scene {
+  constructor() {
+    super('Game');
+  }
 
-    constructor ()
-    {
-        super('Game');
+  create() {
+    this.scene.launch('Textbox');
+    this.scene.launch('World');
+
+    EventBus.on('request-battle', this.handleEnterBattle, this);
+    EventBus.on('exit-battle', this.handleExitBattle, this);
+
+    EventBus.emit('current-scene-ready', this);
+  }
+
+  private handleEnterBattle() {
+    if (this.scene.isActive('World')) this.scene.sleep('World');
+    if (!this.scene.isActive('Battle')) {
+      this.scene.launch('Battle');
+    } else {
+      this.scene.wake('Battle');
     }
+  }
 
-    create ()
-    {
-        this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(0x00ff00);
+  private handleExitBattle() {
+    if (this.scene.isActive('Battle')) this.scene.stop('Battle');
+    if (this.scene.isSleeping('World')) this.scene.wake('World');
+  }
 
-        this.background = this.add.image(512, 384, 'background');
-        this.background.setAlpha(0.5);
-
-        this.gameText = this.add.text(512, 384, 'Make something fun!\nand share it with us:\nsupport@phaser.io', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
-            align: 'center'
-        }).setOrigin(0.5).setDepth(100);
-
-        EventBus.emit('current-scene-ready', this);
-    }
-
-    changeScene ()
-    {
-        this.scene.start('GameOver');
-    }
+  // kept for template compatibility
+  changeScene() {
+    this.scene.stop('Battle');
+    this.scene.stop('World');
+    this.scene.stop('Textbox');
+    this.scene.start('GameOver');
+  }
 }
