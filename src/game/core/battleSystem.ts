@@ -216,3 +216,10 @@ function tickStatusEffects(state: BattleState, combatant: BattleCombatant): void
     })
     .filter(effect => effect.remainingTurns > 0);
 }
+
+/** Sum xpReward of all defeated enemies in the final battle state. */
+export function calcXpReward(state: BattleState): number {
+  return state.combatants
+    .filter(c => !isAlive(c) && !c.actor.uid.startsWith('hero'))
+    .reduce((sum, c) => sum + (c.actor.xpReward ?? 0), 0);
+}
