@@ -67,6 +67,7 @@ export interface ActorTemplate {
     portraitKey?: string;
   };
   drops?: Array<{ itemId: string; chance: number }>; // enemies only
+  xpReward?: number; // enemies only: XP granted on defeat
   aiTag?: string; // enemies: key for your AI tables, e.g. "aggressive"
 }
 
@@ -99,9 +100,31 @@ export interface ActorComputed {
   templateId: string;
   name: string;
   level: number;
+  xp: number;
   statsTotal: Stats;                // base + growth + gear
+  growthPerLevel: Partial<Stats>;   // stat gains applied each level-up
   elementModsTotal: ElementMultipliers;
   statusResistTotal: Partial<StatusResistances>;
+  xpReward?: number;                // enemies only
+}
+
+/** XP required to advance from `level` to `level + 1`. */
+export function xpThreshold(level: number): number {
+  return level * 10;
+}
+
+/** Return a new Stats object with one level's worth of growth applied. */
+export function applyLevelUpStats(stats: Stats, growth: Partial<Stats>): Stats {
+  return {
+    hpMax:  stats.hpMax  + (growth.hpMax  ?? 0),
+    mpMax:  stats.mpMax  + (growth.mpMax  ?? 0),
+    atk:    stats.atk    + (growth.atk    ?? 0),
+    def:    stats.def    + (growth.def    ?? 0),
+    mag:    stats.mag    + (growth.mag    ?? 0),
+    res:    stats.res    + (growth.res    ?? 0),
+    spd:    stats.spd    + (growth.spd    ?? 0),
+    luk:    stats.luk    + (growth.luk    ?? 0),
+  };
 }
 
 // -----------------------------

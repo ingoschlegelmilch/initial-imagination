@@ -37,6 +37,8 @@ export class World extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keyBattle!: Phaser.Input.Keyboard.Key;
   private canMove = true;
+  // Set to false for town/safe areas when the area system is wired up
+  private allowBattles = true;
 
   constructor() {
     super('World');
@@ -66,7 +68,7 @@ export class World extends Phaser.Scene {
   }
 
   update() {
-    if (Phaser.Input.Keyboard.JustDown(this.keyBattle)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keyBattle) && this.allowBattles) {
       EventBus.emit('request-battle');
       return;
     }
