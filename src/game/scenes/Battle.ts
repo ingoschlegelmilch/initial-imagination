@@ -93,7 +93,7 @@ export class Battle extends Phaser.Scene {
    * update turnOrder/currentTurnIndex in BattleState — this handler adapts.
    */
   private onNextTurn() {
-    if (this.phase === 'battle_over') return;
+    if (this.phase === 'battle_over' || this.phase === 'hero_menu') return;
 
     const active = getActiveCombatant(this.state);
     if (!active) return;
@@ -145,8 +145,10 @@ export class Battle extends Phaser.Scene {
         break;
     }
 
+    const logBefore = this.state.log.length;
     this.state = resolveAction(this.state, action);
-    const log = this.state.log[this.state.log.length - 1] ?? '';
+    const newEntries = this.state.log.slice(logBefore);
+    const log = newEntries.join('\n');
     this.refreshHpBars();
 
     const fleeSucceeded = value === 'Flee' && log.includes('escapes');
@@ -168,12 +170,14 @@ export class Battle extends Phaser.Scene {
     );
     if (!target) return;
 
+    const logBefore = this.state.log.length;
     this.state = resolveAction(this.state, {
       kind: 'attack',
       actorUid: combatant.actor.uid,
       targetUid: target.actor.uid,
     });
-    const log = this.state.log[this.state.log.length - 1] ?? '';
+    const newEntries = this.state.log.slice(logBefore);
+    const log = newEntries.join('\n');
     this.refreshHpBars();
 
     const result = isBattleOver(this.state);
