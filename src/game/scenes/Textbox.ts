@@ -60,6 +60,7 @@ export class Textbox extends Phaser.Scene {
     this.keyEsc     = this.input.keyboard!.addKey('ESC');
 
     EventBus.on('ui:textbox:enqueue', this.enqueue, this);
+    EventBus.on('exit-battle', this.clearAll, this);
 
     this.setVisible(false);
   }
@@ -130,6 +131,12 @@ export class Textbox extends Phaser.Scene {
     this.showing = false;
     this.setVisible(false);
     EventBus.emit('ui:textbox:active', false);
+  }
+
+  private clearAll() {
+    this.queue = [];
+    this.current = null;
+    if (this.showing) this.hide();
   }
 
   // ─── Input ─────────────────────────────────────────────────────────────────
@@ -258,6 +265,7 @@ export class Textbox extends Phaser.Scene {
 
   shutdown() {
     EventBus.off('ui:textbox:enqueue', this.enqueue, this);
+    EventBus.off('exit-battle', this.clearAll, this);
     EventBus.emit('ui:textbox:active', false);
   }
 }
