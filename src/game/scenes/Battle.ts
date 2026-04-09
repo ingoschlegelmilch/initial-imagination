@@ -3,7 +3,6 @@ import { queueTextbox } from '../ui/textbox';
 import {
   createBattleState,
   resolveAction,
-  getActiveCombatant,
   isBattleOver,
   calcXpReward,
   BattleState,
@@ -85,6 +84,8 @@ export class Battle extends Phaser.Scene {
   // ─── Textbox-driven flow ───────────────────────────────────────────────────
 
   private showActionMenu() {
+    // Guard: never show a new action menu once battle is over or one is already queued
+    if (this.phase === 'battle_over' || this.phase === 'hero_menu') return;
     this.phase = 'hero_menu';
     queueTextbox({
       text: 'What will you do?',
@@ -99,23 +100,31 @@ export class Battle extends Phaser.Scene {
   }
 
   private onActionChosen(value: string) {
+    // Guard: only act when it's genuinely the player's turn
+    if (this.phase !== 'hero_menu') return;
     this.phase = 'resolving';
-    const active = getActiveCombatant(this.state);
-    if (!active) return;
+
+    // Always resolve as the hero — never rely on currentTurnIndex for actor identity
+    const heroCombatant = this.state.combatants.find(c => c.actor.uid === 'hero#1');
+    if (!heroCombatant || heroCombatant.hp <= 0) return;
 
     let action;
     switch (value) {
       case 'Attack':
-        action = { kind: 'attack' as const, actorUid: active.actor.uid, targetUid: 'enemy#1' };
+        action = { kind: 'attack' as const, actorUid: 'hero#1', targetUid: 'enemy#1' };
         break;
       case 'Defend':
-        action = { kind: 'defend' as const, actorUid: active.actor.uid };
+        action = { kind: 'defend' as const, actorUid: 'hero#1' };
         break;
       case 'Flee':
       default:
-        action = { kind: 'flee' as const, actorUid: active.actor.uid };
+        action = { kind: 'flee' as const, actorUid: 'hero#1' };
         break;
     }
+
+    // Sync currentTurnIndex to hero so advanceTurn ticks the right status effects
+    const heroIndex = this.state.turnOrder.indexOf('hero#1');
+    if (heroIndex >= 0) this.state = { ...this.state, currentTurnIndex: heroIndex };
 
     // ── Hero's turn ──
     this.state = resolveAction(this.state, action);
@@ -135,17 +144,27 @@ export class Battle extends Phaser.Scene {
   }
 
   private onEnemyTurn() {
-    const enemy = getActiveCombatant(this.state);
-    if (!enemy) {
-      // No active enemy — skip straight back to action menu
+    // Guard: only resolve enemy turn when we're actually waiting for it
+    if (this.phase !== 'resolving') return;
+
+    // Find first living enemy directly — never rely on currentTurnIndex for actor identity
+    const enemyCombatant = this.state.combatants.find(
+      c => !c.actor.uid.startsWith('hero') && c.hp > 0
+    );
+    if (!enemyCombatant) {
+      // All enemies gone (shouldn't reach here normally, but handle gracefully)
       EventBus.emit('battle:prompt');
       return;
     }
 
+    // Sync currentTurnIndex to enemy so advanceTurn ticks the right status effects
+    const enemyIndex = this.state.turnOrder.indexOf(enemyCombatant.actor.uid);
+    if (enemyIndex >= 0) this.state = { ...this.state, currentTurnIndex: enemyIndex };
+
     // ── Enemy's turn ──
     this.state = resolveAction(this.state, {
       kind: 'attack',
-      actorUid: enemy.actor.uid,
+      actorUid: enemyCombatant.actor.uid,
       targetUid: 'hero#1',
     });
     const enemyLog = this.state.log[this.state.log.length - 1] ?? '';
