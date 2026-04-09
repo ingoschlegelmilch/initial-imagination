@@ -71,8 +71,9 @@ export class Battle extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(0x1a0a0a);
     this.buildUI();
 
-    EventBus.on('battle:action', this.onActionChosen, this);
-    EventBus.on('battle:prompt',  this.showActionMenu,  this);
+    EventBus.on('battle:action',     this.onActionChosen, this);
+    EventBus.on('battle:prompt',     this.showActionMenu, this);
+    EventBus.on('battle:enemy-turn', this.onEnemyTurn,   this);
 
     queueTextbox({
       text: `A wild ${SLIME.name} appears!`,
@@ -129,14 +130,19 @@ export class Battle extends Phaser.Scene {
       return;
     }
 
-    // ── Enemy's turn (resolved immediately, no extra keypress needed) ──
+    // Show hero's action log; enemy turn resolves only after player confirms
+    queueTextbox({ text: heroLog, mode: 'combat', completeEvent: 'battle:enemy-turn' });
+  }
+
+  private onEnemyTurn() {
     const enemy = getActiveCombatant(this.state);
     if (!enemy) {
-      // No active enemy — shouldn't happen, but fall back to action menu
-      queueTextbox({ text: heroLog, mode: 'combat', completeEvent: 'battle:prompt' });
+      // No active enemy — skip straight back to action menu
+      EventBus.emit('battle:prompt');
       return;
     }
 
+    // ── Enemy's turn ──
     this.state = resolveAction(this.state, {
       kind: 'attack',
       actorUid: enemy.actor.uid,
@@ -147,18 +153,12 @@ export class Battle extends Phaser.Scene {
 
     const resultAfterEnemy = isBattleOver(this.state);
     if (resultAfterEnemy) {
-      // Show hero's action first, then end the battle with the enemy's kill shot
-      queueTextbox({ text: heroLog, mode: 'combat' });
       this.endBattle(resultAfterEnemy, enemyLog);
       return;
     }
 
-    // Both attacks resolved — show combined log, then loop back to action menu
-    queueTextbox({
-      text: `${heroLog}\n${enemyLog}`,
-      mode: 'combat',
-      completeEvent: 'battle:prompt',
-    });
+    // Show enemy's action log; loop back to action menu after confirm
+    queueTextbox({ text: enemyLog, mode: 'combat', completeEvent: 'battle:prompt' });
   }
 
   private endBattle(result: 'heroes_win' | 'enemies_win' | null, lastLog: string) {
@@ -242,7 +242,8 @@ export class Battle extends Phaser.Scene {
   // ─── Cleanup ───────────────────────────────────────────────────────────────
 
   shutdown() {
-    EventBus.off('battle:action', this.onActionChosen, this);
-    EventBus.off('battle:prompt', this.showActionMenu,  this);
+    EventBus.off('battle:action',     this.onActionChosen, this);
+    EventBus.off('battle:prompt',     this.showActionMenu, this);
+    EventBus.off('battle:enemy-turn', this.onEnemyTurn,   this);
   }
 }
