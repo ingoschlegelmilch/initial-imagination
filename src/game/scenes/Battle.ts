@@ -3,9 +3,11 @@ import { queueTextbox } from '../ui/textbox';
 import {
   createBattleState,
   resolveAction,
+  getActiveCombatant,
   isBattleOver,
   calcXpReward,
   BattleState,
+  BattleCombatant,
 } from '../core/battleSystem';
 import { ActorComputed, xpThreshold, applyLevelUpStats } from '../core/models';
 import { SlimeTemplate } from '../data/actors';
@@ -70,114 +72,117 @@ export class Battle extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(0x1a0a0a);
     this.buildUI();
 
-    EventBus.on('battle:action',     this.onActionChosen, this);
-    EventBus.on('battle:prompt',     this.showActionMenu, this);
-    EventBus.on('battle:enemy-turn', this.onEnemyTurn,   this);
+    EventBus.on('battle:action',    this.onActionChosen, this);
+    EventBus.on('battle:next-turn', this.onNextTurn,     this);
 
     queueTextbox({
       text: `A wild ${SLIME.name} appears!`,
       mode: 'combat',
-      completeEvent: 'battle:prompt',
+      completeEvent: 'battle:next-turn',
     });
   }
 
   // ─── Textbox-driven flow ───────────────────────────────────────────────────
 
-  private showActionMenu() {
-    // Guard: never show a new action menu once battle is over or one is already queued
-    if (this.phase === 'battle_over' || this.phase === 'hero_menu') return;
-    this.phase = 'hero_menu';
-    queueTextbox({
-      text: 'What will you do?',
-      mode: 'combat',
-      choices: [
-        { label: 'Attack' },
-        { label: 'Defend' },
-        { label: 'Flee' },
-      ],
-      choiceEvent: 'battle:action',
-    });
+  /**
+   * Central turn dispatcher. Called after every textbox is dismissed.
+   * Reads who is currently active from BattleState and routes accordingly:
+   * - Hero combatant  → show action menu (player input)
+   * - Enemy combatant → auto-resolve AI turn
+   * Adding initiative modifiers or multi-character parties only needs to
+   * update turnOrder/currentTurnIndex in BattleState — this handler adapts.
+   */
+  private onNextTurn() {
+    if (this.phase === 'battle_over') return;
+
+    const active = getActiveCombatant(this.state);
+    if (!active) return;
+
+    if (active.actor.uid.startsWith('hero')) {
+      // ── Player's turn ──
+      this.phase = 'hero_menu';
+      queueTextbox({
+        text: 'What will you do?',
+        mode: 'combat',
+        choices: [
+          { label: 'Attack' },
+          { label: 'Defend' },
+          { label: 'Flee' },
+        ],
+        choiceEvent: 'battle:action',
+      });
+    } else {
+      // ── AI turn — auto-resolve, no player input needed ──
+      this.phase = 'resolving';
+      this.resolveAiTurn(active);
+    }
   }
 
   private onActionChosen(value: string) {
-    // Guard: only act when it's genuinely the player's turn
     if (this.phase !== 'hero_menu') return;
     this.phase = 'resolving';
 
-    // Always resolve as the hero — never rely on currentTurnIndex for actor identity
-    const heroCombatant = this.state.combatants.find(c => c.actor.uid === 'hero#1');
-    if (!heroCombatant || heroCombatant.hp <= 0) return;
+    const active = getActiveCombatant(this.state);
+    if (!active) return;
+
+    // Find the first living enemy to target
+    const target = this.state.combatants.find(
+      c => !c.actor.uid.startsWith('hero') && c.hp > 0
+    );
 
     let action;
     switch (value) {
       case 'Attack':
-        action = { kind: 'attack' as const, actorUid: 'hero#1', targetUid: 'enemy#1' };
+        if (!target) return;
+        action = { kind: 'attack' as const, actorUid: active.actor.uid, targetUid: target.actor.uid };
         break;
       case 'Defend':
-        action = { kind: 'defend' as const, actorUid: 'hero#1' };
+        action = { kind: 'defend' as const, actorUid: active.actor.uid };
         break;
       case 'Flee':
       default:
-        action = { kind: 'flee' as const, actorUid: 'hero#1' };
+        action = { kind: 'flee' as const, actorUid: active.actor.uid };
         break;
     }
 
-    // Sync currentTurnIndex to hero so advanceTurn ticks the right status effects
-    const heroIndex = this.state.turnOrder.indexOf('hero#1');
-    if (heroIndex >= 0) this.state = { ...this.state, currentTurnIndex: heroIndex };
-
-    // ── Hero's turn ──
     this.state = resolveAction(this.state, action);
-    const heroLog = this.state.log[this.state.log.length - 1] ?? '';
+    const log = this.state.log[this.state.log.length - 1] ?? '';
     this.refreshHpBars();
 
-    const fleeSucceeded = value === 'Flee' && heroLog.includes('escapes');
-    const resultAfterHero = isBattleOver(this.state);
+    const fleeSucceeded = value === 'Flee' && log.includes('escapes');
+    const result = isBattleOver(this.state);
 
-    if (resultAfterHero || fleeSucceeded) {
-      this.endBattle(resultAfterHero, heroLog);
+    if (result || fleeSucceeded) {
+      this.endBattle(result, log);
       return;
     }
 
-    // Show hero's action log; enemy turn resolves only after player confirms
-    queueTextbox({ text: heroLog, mode: 'combat', completeEvent: 'battle:enemy-turn' });
+    queueTextbox({ text: log, mode: 'combat', completeEvent: 'battle:next-turn' });
   }
 
-  private onEnemyTurn() {
-    // Guard: only resolve enemy turn when we're actually waiting for it
-    if (this.phase !== 'resolving') return;
-
-    // Find first living enemy directly — never rely on currentTurnIndex for actor identity
-    const enemyCombatant = this.state.combatants.find(
-      c => !c.actor.uid.startsWith('hero') && c.hp > 0
+  /** Resolve one AI-controlled combatant's turn, then hand back to the dispatcher. */
+  private resolveAiTurn(combatant: BattleCombatant) {
+    // Find the first living hero to target
+    const target = this.state.combatants.find(
+      c => c.actor.uid.startsWith('hero') && c.hp > 0
     );
-    if (!enemyCombatant) {
-      // All enemies gone (shouldn't reach here normally, but handle gracefully)
-      EventBus.emit('battle:prompt');
-      return;
-    }
+    if (!target) return;
 
-    // Sync currentTurnIndex to enemy so advanceTurn ticks the right status effects
-    const enemyIndex = this.state.turnOrder.indexOf(enemyCombatant.actor.uid);
-    if (enemyIndex >= 0) this.state = { ...this.state, currentTurnIndex: enemyIndex };
-
-    // ── Enemy's turn ──
     this.state = resolveAction(this.state, {
       kind: 'attack',
-      actorUid: enemyCombatant.actor.uid,
-      targetUid: 'hero#1',
+      actorUid: combatant.actor.uid,
+      targetUid: target.actor.uid,
     });
-    const enemyLog = this.state.log[this.state.log.length - 1] ?? '';
+    const log = this.state.log[this.state.log.length - 1] ?? '';
     this.refreshHpBars();
 
-    const resultAfterEnemy = isBattleOver(this.state);
-    if (resultAfterEnemy) {
-      this.endBattle(resultAfterEnemy, enemyLog);
+    const result = isBattleOver(this.state);
+    if (result) {
+      this.endBattle(result, log);
       return;
     }
 
-    // Show enemy's action log; loop back to action menu after confirm
-    queueTextbox({ text: enemyLog, mode: 'combat', completeEvent: 'battle:prompt' });
+    queueTextbox({ text: log, mode: 'combat', completeEvent: 'battle:next-turn' });
   }
 
   private endBattle(result: 'heroes_win' | 'enemies_win' | null, lastLog: string) {
@@ -261,8 +266,7 @@ export class Battle extends Phaser.Scene {
   // ─── Cleanup ───────────────────────────────────────────────────────────────
 
   shutdown() {
-    EventBus.off('battle:action',     this.onActionChosen, this);
-    EventBus.off('battle:prompt',     this.showActionMenu, this);
-    EventBus.off('battle:enemy-turn', this.onEnemyTurn,   this);
+    EventBus.off('battle:action',    this.onActionChosen, this);
+    EventBus.off('battle:next-turn', this.onNextTurn,     this);
   }
 }
