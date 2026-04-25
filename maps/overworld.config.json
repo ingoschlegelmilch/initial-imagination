@@ -1,0 +1,37 @@
+{
+  "name": "overworld",
+  "tile_size": 64,
+  "map_width": 20,
+  "map_height": 12,
+  "tile_dir": "../public/assets/tiles",
+  "output_dir": "../public/assets",
+  "layers": [
+    {
+      "name": "ground",
+      "strategy": "char_grid",
+      "layout": [
+        "WWWWWWWWWWWWWWWWWWWW",
+        "W..................W",
+        "W....W.....W.......W",
+        "W....W.....W.......W",
+        "W..............~~~~W",
+        "W..............~~~~W",
+        "W....W.............W",
+        "W....W.............W",
+        "W..................W",
+        "W..................W",
+        "W..................W",
+        "WWWWWWWWWWWWWWWWWWWW"
+      ],
+      "char_map": {
+        ".": "overworld-grass",
+        "W": "overworld-wall",
+        "~": "overworld-water"
+      }
+    }
+  ],
+  "non_walkable_tiles": [
+    "overworld-wall",
+    "overworld-water"
+  ]
+}

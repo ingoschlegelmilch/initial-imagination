@@ -1,0 +1,36 @@
+{
+  "name": "town-millhaven",
+  "tile_size": 64,
+  "map_width": 20,
+  "map_height": 12,
+  "tile_dir": "../public/assets/tiles",
+  "output_dir": "../public/assets",
+  "layers": [
+    {
+      "name": "ground",
+      "strategy": "char_grid",
+      "layout": [
+        "WWWWWWWWWWWWWWWWWWWW",
+        "W...WWWW...WWWW....W",
+        "W...W..W...W..W....W",
+        "W...WWWW...WWWW....W",
+        "W..................W",
+        "W....RRRRRRRR......W",
+        "W..................W",
+        "W..WWWWWW..........W",
+        "W..W....W..........W",
+        "W..W....W..........W",
+        "W..WWWWWW..........W",
+        "WWWWWWWWWWWWWWWWWWWW"
+      ],
+      "char_map": {
+        ".": "overworld-grass",
+        "W": "overworld-wall",
+        "R": "overworld-road"
+      }
+    }
+  ],
+  "non_walkable_tiles": [
+    "overworld-wall"
+  ]
+}

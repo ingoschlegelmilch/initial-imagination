@@ -1,5 +1,4 @@
 import { EventBus } from '../EventBus';
-import { Tile, TerrainKind } from '../core/models';
 import { AreaConfig, AREA_OVERWORLD, AREAS } from '../core/areas';
 import { queueTextbox } from '../ui/textbox';
 
@@ -11,13 +10,6 @@ export interface WorldInitData {
 
 const TILE = 64;
 
-const DEFAULT_TERRAIN_COLORS: Record<TerrainKind, number> = {
-  Grass: 0x4a7c2f,
-  Water: 0x2255aa,
-  Wall:  0x555555,
-  Floor: 0x998866,
-  Road:  0xaaaaaa,
-};
 
 const NPC_DIALOGUE = [
   'Hello, traveller!',
@@ -27,21 +19,23 @@ const NPC_DIALOGUE = [
 
 export class World extends Phaser.Scene {
   private areaConfig!: AreaConfig;
-  private tiles: Tile[][] = [];
+  private tilemap!: Phaser.Tilemaps.Tilemap;
+  private groundLayer!: Phaser.Tilemaps.TilemapLayer;
 
   // Hero
   private heroTileX = 2;
   private heroTileY = 2;
   private heroSpawnX = 2;
   private heroSpawnY = 2;
-  private heroRect!: Phaser.GameObjects.Rectangle;
-  private heroFacing = { dx: 1, dy: 0 };
+  private heroSprite!: Phaser.GameObjects.Sprite;
+  private heroFacing = { dx: 0, dy: 1 };
   private canMove = true;
 
   // NPC
   private npcTileX = 8;
   private npcTileY = 3;
-  private npcRect!: Phaser.GameObjects.Rectangle;
+  private npcSprite!: Phaser.GameObjects.Sprite;
+  private npcFacing = { dx: 0, dy: 1 };
   private npcCanMove = true;
 
   // Input
@@ -61,7 +55,7 @@ export class World extends Phaser.Scene {
     this.areaConfig  = data?.config ?? AREA_OVERWORLD;
     this.heroSpawnX  = data?.spawnX ?? 2;
     this.heroSpawnY  = data?.spawnY ?? 2;
-    this.stepsSinceEncounter = this.areaConfig.encounterCooldown ?? 10;
+    this.stepsSinceEncounter = 0;
     // Reset state that could be stuck if scene was interrupted mid-action
     this.textboxOpen = false;
     this.canMove     = true;
@@ -69,35 +63,40 @@ export class World extends Phaser.Scene {
   }
 
   create() {
-    const { cols, rows } = this.areaConfig;
-
     this.heroTileX = this.heroSpawnX;
     this.heroTileY = this.heroSpawnY;
 
-    this.tiles = this.buildMap();
-    this.renderTiles();
+    this.tilemap = this.make.tilemap({ key: this.areaConfig.key });
+    const tileset = this.tilemap.addTilesetImage(this.areaConfig.key, `${this.areaConfig.key}-tiles`)!;
+    this.groundLayer = this.tilemap.createLayer('ground', tileset, 0, 0)!;
+
     this.renderPortals();
 
-    this.heroRect = this.add
-      .rectangle(
+    this.heroSprite = this.add
+      .sprite(
         this.heroTileX * TILE + TILE / 2,
         this.heroTileY * TILE + TILE / 2,
-        TILE - 8, TILE - 8,
-        0xffdd00
+        'hero-fighter'
       )
       .setDepth(1);
 
-    this.npcRect = this.add
-      .rectangle(
+    this.createHeroAnims();
+    this.heroSprite.setFrame(this.heroIdleFrame());
+
+    this.npcSprite = this.add
+      .sprite(
         this.npcTileX * TILE + TILE / 2,
         this.npcTileY * TILE + TILE / 2,
-        TILE - 8, TILE - 8,
-        0x00cccc
+        'npc-wizard'
       )
       .setDepth(1);
 
-    this.cameras.main.setBounds(0, 0, cols * TILE, rows * TILE);
-    this.cameras.main.startFollow(this.heroRect, true, 0.1, 0.1);
+    this.createNpcAnims();
+    this.npcSprite.setFrame(this.npcIdleFrame());
+
+    this.cameras.main.setBounds(0, 0, this.tilemap.widthInPixels, this.tilemap.heightInPixels);
+    this.cameras.main.setZoom(3);
+    this.cameras.main.startFollow(this.heroSprite, true, 0.1, 0.1);
 
     this.cursors    = this.input.keyboard!.createCursorKeys();
     this.keyBattle  = this.input.keyboard!.addKey('B');
@@ -118,6 +117,81 @@ export class World extends Phaser.Scene {
     });
 
     this.showAreaNamePopup();
+  }
+
+  // Spritesheet layout: 4 cols × 4 rows, 48×48 px per frame (192×192 total)
+  // Row 0 = down, Row 1 = left, Row 2 = right, Row 3 = up
+  private static readonly FRAMES_PER_DIR = 4;
+
+  // Spritesheet layout: row 0=up, 1=right, 2=down, 3=left
+  // Col 0 & 2 = walk poses (mirrored), col 1 & 3 = standing (identical)
+  private createHeroAnims() {
+    const n = World.FRAMES_PER_DIR;
+    const DIRS = ['up', 'right', 'down', 'left'] as const;
+    DIRS.forEach((dir, row) => {
+      if (!this.anims.exists(`hero-walk-${dir}`)) {
+        this.anims.create({
+          key: `hero-walk-${dir}`,
+          frames: this.anims.generateFrameNumbers('hero-fighter', {
+            frames: [row * n, row * n + 2], // cols 0 and 2 only
+          }),
+          frameRate: 10,
+          repeat: -1,
+        });
+      }
+    });
+  }
+
+  private heroWalkAnimKey(): string {
+    const { dx, dy } = this.heroFacing;
+    if (dy > 0) return 'hero-walk-down';
+    if (dy < 0) return 'hero-walk-up';
+    if (dx < 0) return 'hero-walk-left';
+    return 'hero-walk-right';
+  }
+
+  // col 1 of each direction row is the standing pose
+  private heroIdleFrame(): number {
+    const n = World.FRAMES_PER_DIR;
+    const { dx, dy } = this.heroFacing;
+    if (dy < 0) return 0 * n + 1;  // up    — row 0, col 1
+    if (dx > 0) return 1 * n + 1;  // right — row 1, col 1
+    if (dy > 0) return 2 * n + 1;  // down  — row 2, col 1
+    return 3 * n + 1;              // left  — row 3, col 1
+  }
+
+  private createNpcAnims() {
+    const n = World.FRAMES_PER_DIR;
+    const DIRS = ['up', 'right', 'down', 'left'] as const;
+    DIRS.forEach((dir, row) => {
+      if (!this.anims.exists(`npc-wizard-walk-${dir}`)) {
+        this.anims.create({
+          key: `npc-wizard-walk-${dir}`,
+          frames: this.anims.generateFrameNumbers('npc-wizard', {
+            frames: [row * n, row * n + 2],
+          }),
+          frameRate: 10,
+          repeat: -1,
+        });
+      }
+    });
+  }
+
+  private npcWalkAnimKey(): string {
+    const { dx, dy } = this.npcFacing;
+    if (dy > 0) return 'npc-wizard-walk-down';
+    if (dy < 0) return 'npc-wizard-walk-up';
+    if (dx < 0) return 'npc-wizard-walk-left';
+    return 'npc-wizard-walk-right';
+  }
+
+  private npcIdleFrame(): number {
+    const n = World.FRAMES_PER_DIR;
+    const { dx, dy } = this.npcFacing;
+    if (dy < 0) return 0 * n + 1;
+    if (dx > 0) return 1 * n + 1;
+    if (dy > 0) return 2 * n + 1;
+    return 3 * n + 1;
   }
 
   private showAreaNamePopup() {
@@ -168,12 +242,24 @@ export class World extends Phaser.Scene {
     if (this.cursors.up!.isDown)    dy = -1;
     if (this.cursors.down!.isDown)  dy =  1;
 
-    if (dx === 0 && dy === 0) return;
+    if (dx === 0 && dy === 0) {
+      if (this.heroSprite.anims.isPlaying) {
+        this.heroSprite.stop();
+        this.heroSprite.setFrame(this.heroIdleFrame());
+      }
+      return;
+    }
 
     // No diagonal
     if (dx !== 0 && dy !== 0) dy = 0;
 
-    this.heroFacing = { dx, dy };
+    // Turn to face the new direction before walking
+    if (dx !== this.heroFacing.dx || dy !== this.heroFacing.dy) {
+      this.heroFacing = { dx, dy };
+      this.heroSprite.stop();
+      this.heroSprite.setFrame(this.heroIdleFrame());
+      return;
+    }
 
     const nx = this.heroTileX + dx;
     const ny = this.heroTileY + dy;
@@ -184,12 +270,18 @@ export class World extends Phaser.Scene {
       this.heroTileX = nx;
       this.heroTileY = ny;
       this.tweens.add({
-        targets: this.heroRect,
+        targets: this.heroSprite,
         x: nx * TILE + TILE / 2,
         y: ny * TILE + TILE / 2,
-        duration: 100,
+        duration: 200,
         ease: 'Linear',
-        onStart:    () => { this.canMove = false; },
+        onStart: () => {
+          this.canMove = false;
+          const key = this.heroWalkAnimKey();
+          if (!this.heroSprite.anims.isPlaying || this.heroSprite.anims.currentAnim?.key !== key) {
+            this.heroSprite.play(key);
+          }
+        },
         onComplete: () => {
           this.canMove = true;
           this.onStepTaken();
@@ -275,60 +367,38 @@ export class World extends Phaser.Scene {
   }
 
   private moveNPCToTile(tx: number, ty: number) {
+    const dx = tx - this.npcTileX;
+    const dy = ty - this.npcTileY;
+    this.npcFacing = { dx, dy };
     this.npcTileX = tx;
     this.npcTileY = ty;
     this.npcCanMove = false;
     this.tweens.add({
-      targets: this.npcRect,
+      targets: this.npcSprite,
       x: tx * TILE + TILE / 2,
       y: ty * TILE + TILE / 2,
       duration: 200,
       ease: 'Linear',
-      onComplete: () => { this.npcCanMove = true; },
+      onStart: () => {
+        const key = this.npcWalkAnimKey();
+        if (!this.npcSprite.anims.isPlaying || this.npcSprite.anims.currentAnim?.key !== key) {
+          this.npcSprite.play(key);
+        }
+      },
+      onComplete: () => {
+        this.npcCanMove = true;
+        this.npcSprite.stop();
+        this.npcSprite.setFrame(this.npcIdleFrame());
+      },
     });
   }
 
   // ─── Map helpers ───────────────────────────────────────────────────────────
 
-  private buildMap(): Tile[][] {
-    const { layout, cols, rows } = this.areaConfig;
-    const grid: Tile[][] = [];
-    for (let row = 0; row < rows; row++) {
-      grid[row] = [];
-      for (let col = 0; col < cols; col++) {
-        const ch = layout[row]?.[col] ?? '.';
-        const terrain = charToTerrain(ch);
-        grid[row][col] = {
-          x: col,
-          y: row,
-          terrain,
-          walkable: terrain !== TerrainKind.Wall && terrain !== TerrainKind.Water,
-        };
-      }
-    }
-    return grid;
-  }
-
-  private renderTiles() {
-    const { cols, rows, terrainColors } = this.areaConfig;
-    const colors = { ...DEFAULT_TERRAIN_COLORS, ...terrainColors };
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const tile = this.tiles[row][col];
-        this.add.rectangle(
-          col * TILE + TILE / 2,
-          row * TILE + TILE / 2,
-          TILE - 1, TILE - 1,
-          colors[tile.terrain]
-        );
-      }
-    }
-  }
-
   private isTileWalkable(col: number, row: number): boolean {
-    const { cols, rows } = this.areaConfig;
-    if (row < 0 || row >= rows || col < 0 || col >= cols) return false;
-    return this.tiles[row][col].walkable;
+    if (col < 0 || row < 0 || col >= this.tilemap.width || row >= this.tilemap.height) return false;
+    const tile = this.groundLayer.getTileAt(col, row);
+    return !tile?.properties?.impassable;
   }
 
   private isPortalTile(col: number, row: number): boolean {
@@ -339,15 +409,5 @@ export class World extends Phaser.Scene {
 
   shutdown() {
     EventBus.off('ui:textbox:active', undefined, this);
-  }
-}
-
-function charToTerrain(ch: string): TerrainKind {
-  switch (ch) {
-    case 'W': return TerrainKind.Wall;
-    case '~': return TerrainKind.Water;
-    case 'F': return TerrainKind.Floor;
-    case 'R': return TerrainKind.Road;
-    default:  return TerrainKind.Grass;
   }
 }

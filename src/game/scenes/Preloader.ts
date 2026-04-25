@@ -34,6 +34,22 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'logo.png');
         this.load.image('star', 'star.png');
+        this.load.spritesheet('hero-fighter', 'sprites/hero-fighter.png', {
+            frameWidth: 48,
+            frameHeight: 48,
+        });
+        this.load.spritesheet('npc-wizard', 'sprites/npc-wizard.png', {
+            frameWidth: 48,
+            frameHeight: 48,
+        });
+        this.load.image('overworld-tiles',      'tilesets/overworld.png');
+        this.load.tilemapTiledJSON('overworld', 'maps/overworld.tmj');
+        this.load.image('forest-1-tiles',       'tilesets/forest-1.png');
+        this.load.tilemapTiledJSON('forest-1',  'maps/forest-1.tmj');
+        this.load.image('town-millhaven-tiles',        'tilesets/town-millhaven.png');
+        this.load.tilemapTiledJSON('town-millhaven',   'maps/town-millhaven.tmj');
+        this.load.image('dungeon-1-tiles',      'tilesets/dungeon-1.png');
+        this.load.tilemapTiledJSON('dungeon-1', 'maps/dungeon-1.tmj');
     }
 
     create ()
