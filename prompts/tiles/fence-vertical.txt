@@ -1,0 +1,25 @@
+# Asset: Vertical wooden fence segment
+# Category: tile (deviation: decorative overlay, not a tiling base surface)
+# Recommended size: 64x64
+# Tiling: no
+# Palette: inherit — warm browns with cool shadows, matches existing overworld set
+# Phaser 3 notes: this.load.image('fence-vertical', 'assets/tiles/belowPlayer/fence-vertical.png')
+#                 Sits on the `belowPlayer` tilemap layer — needs transparent background
+#                 so the underlying ground tile shows through to the left and right.
+
+PROMPT:
+pixel art, vertical wooden fence segment, two thin parallel vertical wood rails spanning the full height of the tile from top edge to bottom edge, one small horizontal cross-beam in the middle, occupies only the middle horizontal band of the tile with empty transparent space to the left and right, weathered warm brown wood with subtle grain, limited palette, two-tone shading, clean silhouette, slight 3/4 top-down perspective, single subject, centered, transparent background, HD pixel art, game asset, pixel art
+
+STYLE: game asset
+
+NEGATIVE / CAUTIONS:
+- The space to the left and right of the fence MUST be transparent — no grass, no dirt, no background fill
+- The two rails MUST reach the TOP and BOTTOM edges of the tile so adjacent tiles connect into a continuous fence column
+- The fence must NOT span the full WIDTH — empty space on the left and right is required
+- No text, no watermarks, no drop shadows, no motion lines
+- Don't make the fence look like a tall wall or hedge — it's a low, decorative wooden fence
+
+VARIATIONS:
+- Damaged segment (broken rail, leaning post)
+- Stone fence segment, same silhouette
+- Painted white picket variant

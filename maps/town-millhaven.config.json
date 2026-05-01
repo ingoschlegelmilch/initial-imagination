@@ -10,27 +10,74 @@
       "name": "ground",
       "strategy": "char_grid",
       "layout": [
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        ".....RRRRRRRR.......",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "...................."
+      ],
+      "char_map": {
+        ".": "overworld-grass",
+        "R": "overworld-road"
+      }
+    },
+    {
+      "name": "belowPlayer",
+      "strategy": "char_grid",
+      "layout": [
         "WWWWWWWWWWWWWWWWWWWW",
         "W...WWWW...WWWW....W",
         "W...W..W...W..W....W",
         "W...WWWW...WWWW....W",
         "W..................W",
-        "W....RRRRRRRR......W",
-        "W..................W",
-        "W..WWWWWW..........W",
-        "W..W....W..........W",
-        "W..W....W..........W",
-        "W..WWWWWW..........W",
+        "W................B.W",
+        "W...........HHHHHH.W",
+        "W..WWWWWW...V....V.W",
+        "W..W....W...V....V.W",
+        "W..W....W...V....V.W",
+        "W..WWWWWW...HHHHHH.W",
         "WWWWWWWWWWWWWWWWWWWW"
       ],
       "char_map": {
-        ".": "overworld-grass",
         "W": "overworld-wall",
-        "R": "overworld-road"
+        "H": "fence-horizontal",
+        "V": "fence-vertical",
+        "B": "house-body"
+      }
+    },
+    {
+      "name": "abovePlayer",
+      "strategy": "char_grid",
+      "layout": [
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        ".................r..",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "...................."
+      ],
+      "char_map": {
+        "r": "house-roof"
       }
     }
   ],
   "non_walkable_tiles": [
+    "fence-horizontal",
+    "fence-vertical",
+    "house-body",
     "overworld-wall"
   ]
 }

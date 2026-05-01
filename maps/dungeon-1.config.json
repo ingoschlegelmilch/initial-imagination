@@ -10,13 +10,36 @@
       "name": "ground",
       "strategy": "char_grid",
       "layout": [
+        "....................",
+        ".F.F................",
+        "....................",
+        "....................",
+        "....................",
+        "..........~~~~~.....",
+        "..........~~~~~.....",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "...................."
+      ],
+      "char_map": {
+        ".": "overworld-grass",
+        "~": "overworld-water",
+        "F": "indoor-floor"
+      }
+    },
+    {
+      "name": "belowPlayer",
+      "strategy": "char_grid",
+      "layout": [
         "WWWWWWWWWWWWWWWWWWWW",
-        "WF.FWWWWWWWWWWWWWWWW",
+        "W...WWWWWWWWWWWWWWWW",
         "W...WWWWWW.........W",
         "W...W....W.........W",
         "W...W....WWWWWWW...W",
-        "W........W~~~~~W...W",
-        "WWWWWW...W~~~~~W...W",
+        "W........W.....W...W",
+        "WWWWWW...W.....W...W",
         "W....W...WWWWWWW...W",
         "W....W.............W",
         "W....WWWWWW........W",
@@ -24,10 +47,7 @@
         "WWWWWWWWWWWWWWWWWWWW"
       ],
       "char_map": {
-        ".": "overworld-grass",
-        "W": "overworld-wall",
-        "~": "overworld-water",
-        "F": "indoor-floor"
+        "W": "overworld-wall"
       }
     }
   ],

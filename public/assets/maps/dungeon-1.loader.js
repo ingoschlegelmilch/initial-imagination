@@ -13,4 +13,5 @@ function create() {
     const tileset = map.addTilesetImage('dungeon-1', 'dungeon-1_tiles');
 
     const groundLayer = map.createLayer('ground', tileset, 0, 0);
+    const belowPlayerLayer = map.createLayer('belowPlayer', tileset, 0, 0);
 }

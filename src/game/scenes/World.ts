@@ -20,7 +20,6 @@ const NPC_DIALOGUE = [
 export class World extends Phaser.Scene {
   private areaConfig!: AreaConfig;
   private tilemap!: Phaser.Tilemaps.Tilemap;
-  private groundLayer!: Phaser.Tilemaps.TilemapLayer;
 
   // Hero
   private heroTileX = 2;
@@ -68,7 +67,15 @@ export class World extends Phaser.Scene {
 
     this.tilemap = this.make.tilemap({ key: this.areaConfig.key });
     const tileset = this.tilemap.addTilesetImage(this.areaConfig.key, `${this.areaConfig.key}-tiles`)!;
-    this.groundLayer = this.tilemap.createLayer('ground', tileset, 0, 0)!;
+    this.tilemap.createLayer('ground', tileset, 0, 0);
+    // Hero is at depth 1; render decoration above ground but under the player,
+    // and canopies/awnings above the player.
+    if (this.tilemap.getLayer('belowPlayer')) {
+      this.tilemap.createLayer('belowPlayer', tileset, 0, 0)!.setDepth(0.5);
+    }
+    if (this.tilemap.getLayer('abovePlayer')) {
+      this.tilemap.createLayer('abovePlayer', tileset, 0, 0)!.setDepth(2);
+    }
 
     this.renderPortals();
 
@@ -397,8 +404,12 @@ export class World extends Phaser.Scene {
 
   private isTileWalkable(col: number, row: number): boolean {
     if (col < 0 || row < 0 || col >= this.tilemap.width || row >= this.tilemap.height) return false;
-    const tile = this.groundLayer.getTileAt(col, row);
-    return !tile?.properties?.impassable;
+    // Any layer containing an impassable tile at this cell blocks movement.
+    for (const layer of this.tilemap.layers) {
+      const tile = this.tilemap.getTileAt(col, row, false, layer.name);
+      if (tile?.properties?.impassable) return false;
+    }
+    return true;
   }
 
   private isPortalTile(col: number, row: number): boolean {

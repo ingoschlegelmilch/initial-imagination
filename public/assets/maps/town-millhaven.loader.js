@@ -13,4 +13,6 @@ function create() {
     const tileset = map.addTilesetImage('town-millhaven', 'town-millhaven_tiles');
 
     const groundLayer = map.createLayer('ground', tileset, 0, 0);
+    const belowPlayerLayer = map.createLayer('belowPlayer', tileset, 0, 0);
+    const abovePlayerLayer = map.createLayer('abovePlayer', tileset, 0, 0);
 }

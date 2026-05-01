@@ -1,0 +1,26 @@
+# Asset: Small cottage house, 1 tile wide × 2 tiles tall (sliced post-generation)
+# Category: tile (deviation: 64×128 source, sliced into two 64×64 tiles)
+# Recommended size: 64x128
+# Tiling: no
+# Palette: inherit — warm browns + grey stone, matches existing overworld set
+# Phaser 3 notes: Slice at y=64 →
+#                 public/assets/tiles/belowPlayer/house-body.png (lower 64×64, impassable)
+#                 public/assets/tiles/abovePlayer/house-roof.png (upper 64×64, decorative)
+#                 In a layout: B at row y, r at row y-1, same column.
+
+PROMPT:
+pixel art, single small cottage house, vertical 1 wide by 2 tall composition, lower half shows a stone wall with a small wooden door in the center, upper half shows a sloped wooden shingle roof with eaves that overhang slightly above the wall, clear horizontal break at the exact middle of the image where the eaves meet the top of the wall, weathered warm brown wood and grey stone, limited palette, two-tone shading, clean silhouette, slight 3/4 top-down perspective, single subject, centered, transparent background, HD pixel art, game asset, pixel art
+
+STYLE: game asset
+
+NEGATIVE / CAUTIONS:
+- Background MUST be a single uniform color (we chroma-key it to alpha=0 after generation)
+- The horizontal break (eaves over wall) MUST be at y=64 (image midline) — this is where we slice
+- Roof must NOT extend below y=64; wall must NOT extend above y=64
+- No chimney smoke, no surrounding ground, no path, no NPC at the door
+- No text, watermark, drop shadow
+
+VARIATIONS:
+- Stone-walled vs full-wood vs half-timbered
+- Thatched roof vs shingle
+- Door open vs closed

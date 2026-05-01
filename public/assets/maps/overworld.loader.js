@@ -13,4 +13,5 @@ function create() {
     const tileset = map.addTilesetImage('overworld', 'overworld_tiles');
 
     const groundLayer = map.createLayer('ground', tileset, 0, 0);
+    const belowPlayerLayer = map.createLayer('belowPlayer', tileset, 0, 0);
 }
