@@ -38,3 +38,8 @@ next-env.d.ts
 
 # Claude Code
 .claude/worktrees/
+.claude/settings.local.json
+
+# Python bytecode (skill scripts)
+__pycache__/
+*.pyc
